@@ -1,0 +1,60 @@
+
+get_ipython().system('pip install dash')
+import dash
+from dash import html, dcc
+import requests
+import pandas as pd
+
+external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
+
+app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
+
+
+# Подключение к API ВКонтакте
+# Access token для VK API
+access_token = '6c3a69ea6c3a69ea6c3a69eacb6f2cdd2966c3a6c3a69ea09bf33afccab477d60b98b3f'
+# ID пользователя
+user_id = 'natalnaya_karta_show'
+# Версия API
+api_version = '5.131'
+# Метод API для получения записей со стены
+method = 'wall.get'
+
+# GET запрос по указанному URL
+url = f'https://api.vk.com/method/{method}?access_token={access_token}&v={api_version}&owner_id={user_id}'
+r = requests.get(url)
+data = r.json()
+
+# Обработка данных
+posts = data.get('response', {}).get('items', [])
+likes = [post.get('likes', {}).get('count', 0) for post in posts]
+reposts = [post.get('reposts', {}).get('count', 0) for post in posts]
+comments = [post.get('comments', {}).get('count', 0) for post in posts]
+df = pd.DataFrame({'Likes': likes, 'Reposts': reposts, 'Comments': comments})
+df.index = range(1, len(df) + 1)  # Индексы для каждого поста
+
+app.layout = html.Div(children=[
+    # Создаем заголовок на странице
+    html.H1(children='Likes, Reposts and Comments for Each Post'),
+
+    # Создаем график, отображающий количество лайков, репостов и комментариев для каждого поста
+    dcc.Graph(
+        id='example-graph',
+        figure={
+            'data': [
+                {'x': df.index, 'y': df['Likes'], 'type': 'bar', 'name': 'Likes'},  # График для лайков
+                {'x': df.index, 'y': df['Reposts'], 'type': 'bar', 'name': 'Reposts'},  # График для репостов
+                {'x': df.index, 'y': df['Comments'], 'type': 'bar', 'name': 'Comments'}  # График для комментариев
+            ],
+            'layout': {
+                'title': 'Likes, Reposts and Comments for Each Post',  # Заголовок графика
+                'xaxis': {'title': 'Post Number'},  # Название оси X
+                'yaxis': {'title': 'Count'}  # Название оси Y
+            }
+        }
+    ),
+])
+
+# Запускаем сервер Dash
+if __name__ == '__main__':  # Исправлено: __name__
+    app.run_server(debug=True, port=8054)
